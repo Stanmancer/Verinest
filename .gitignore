@@ -1,4 +1,10 @@
-# Logs
+/target
+.env
+old
+db.rs.bak
+migration.sql
+
+# Logs 
 logs
 *.log
 npm-debug.log*
