@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
-import { handleEmailSignIn, handleGoogleSignIn } from "../utils/AuthHandlers.js";
+import {
+	handleEmailSignIn,
+	handleGoogleSignIn,
+} from "../utils/AuthHandlers.js";
 import ErrorMessage from "./ErrorMessage";
 import { GoogleLogin } from "@react-oauth/google";
 
@@ -46,13 +49,13 @@ export default function EmailSignIn({ toggleEmailSignIn, toggleEmailSignUp }) {
 						onSuccess={(credentialResponse) => {
 							const idToken = credentialResponse.credential;
 
-							handleGoogleSignIn(
+							handleGoogleSignIn({
 								setErrors,
 								setIsLoading,
 								setUser,
 								navigate,
-								idToken
-							);
+								idToken,
+							});
 						}}
 						onError={() => {
 							setErrors({ googleAuth: "Google sign-in failed" });
