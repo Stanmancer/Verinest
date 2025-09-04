@@ -1,4 +1,6 @@
-import { validateEmail } from "./validators";
+import { jwtDecode } from "jwt-decode";
+import { validateEmail } from "./validators.js";
+import { googleLogout } from "@react-oauth/google";
 
 export async function handleEmailSignIn({
 	e,
@@ -38,18 +40,18 @@ export async function handleEmailSignIn({
 		);
 
 		const data = await response.json();
-		console.log("API Response:", data);
 
 		if (response.ok) {
-			localStorage.setItem("token", data.token); // backend should be returning this
+			localStorage.setItem("token", data.token);
 			navigate("/dashboard");
 		} else {
 			setErrors({ form: data.message || "Sign in failed" });
 		}
-		console.log("API Response:", data);
 	} catch (err) {
-		setErrors({ form: "Network error during sign in", err });
-		console.log(err);
+		setErrors({
+			form: "Network error during sign in",
+			details: err.message,
+		});
 	} finally {
 		setIsLoading(false);
 	}
@@ -61,35 +63,37 @@ export async function handleEmailSignUp({
 	userName,
 	signUpEmail,
 	signUpPassword,
-	signUpPasswordError,
-	signUpPasswordConfirm,
-	signUpPasswordConfirmError,
-	referralCode,
-	setSignUpEmailError,
-	setIsLoading,
+	confirmPassword,
 	setErrors,
+	referralCode,
+	setIsLoading,
 	toggleEmailVerify,
 	toggleEmailSignUp,
 }) {
 	e.preventDefault();
 
-	if (
-		!fullName ||
-		!userName ||
-		!signUpEmail ||
-		!signUpPassword ||
-		!signUpPasswordConfirm
-	) {
-		if (!signUpEmail) setSignUpEmailError("Email is required");
+	if (!fullName) {
+		setErrors({ fullName: "Full name is required" });
 		return;
 	}
-
+	if (!userName) {
+		setErrors({ userName: "Username is required" });
+		return;
+	}
+	if (!signUpEmail) {
+		setErrors({ email: "Email is required" });
+		return;
+	}
 	if (!validateEmail(signUpEmail)) {
-		setSignUpEmailError("Please enter a valid email address");
+		setErrors({ email: "Invalid email format" });
 		return;
 	}
-
-	if (signUpPasswordError || signUpPasswordConfirmError) {
+	if (!signUpPassword) {
+		setErrors({ password: "Password is required" });
+		return;
+	}
+	if (signUpPassword !== confirmPassword) {
+		setErrors({ confirmPassword: "Passwords do not match" });
 		return;
 	}
 
@@ -109,7 +113,7 @@ export async function handleEmailSignUp({
 					username: userName,
 					email: signUpEmail,
 					password: signUpPassword,
-					passwordConfirm: signUpPasswordConfirm,
+					passwordConfirm: confirmPassword,
 					referral_code: referralCode || undefined,
 				}),
 				credentials: "include", // ensure cookie is included
@@ -119,8 +123,6 @@ export async function handleEmailSignUp({
 		const data = await response.json();
 
 		if (response.ok) {
-			// Handle successful sign up
-			console.log("Sign up successful:", data);
 			toggleEmailSignUp();
 			toggleEmailVerify();
 		} else if (response.status === 409) {
@@ -130,11 +132,14 @@ export async function handleEmailSignUp({
 			});
 		} else {
 			// Handle sign up error
-			setErrors({ form: data.message || "Sign up failed" });
-			console.error("Sign up failed");
+			setErrors({ form: data.message || "Sign-up failed" });
+			return;
 		}
 	} catch (err) {
-		setErrors({ form: "Network error during sign up", err });
+		setErrors({
+			form: "Network error during sign up",
+			details: err.message,
+		});
 	} finally {
 		setIsLoading(false);
 	}
@@ -145,23 +150,45 @@ export async function handleGoogleSignIn({
 	setIsLoading,
 	setUser,
 	navigate,
+	idToken,
 }) {
 	setIsLoading(true);
 	setErrors({});
 
 	try {
-		// Replace with real Google OAuth integration
-		const response = await fetch("/api/auth/google");
+		const decodedIdToken = jwtDecode(idToken);
+
+		// pick only needed claims
+		const userClaims = {
+			email: decodedIdToken.email,
+			name: decodedIdToken.name,
+			picture: decodedIdToken.picture,
+		};
+
+		const response = await fetch(
+			"https://verinest.up.railway.app/api/auth/google",
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					token: idToken,
+					claims: userClaims,
+				}),
+			}
+		);
+
+		if (!response.ok) {
+			setErrors({ googleAuth: data.message || "Google sign-in failed" });
+			return;
+		}
+
 		const data = await response.json();
 
-		if (response.ok) {
-			setUser(data.data.user);
-			navigate("/dashboard");
-		} else {
-			setErrors({ google: data.message || "Google sign-in failed" });
-		}
+		setUser(data.user);
+		localStorage.setItem("token", data.token);
+		navigate("/dashboard");
 	} catch (err) {
-		setErrors({ google: "Network error during Google sign-in", err });
+		setErrors({ googleAuth: err.message || "Google sign-in failed" });
 	} finally {
 		setIsLoading(false);
 	}
@@ -169,15 +196,11 @@ export async function handleGoogleSignIn({
 
 export function handleSignOut({ setUser, navigate }) {
 	try {
-		// clear user state
 		setUser(null);
-
-		// optionally clear localStorage/sessionStorage if you store tokens
 		localStorage.removeItem("token");
-
-		// send user back to Landing page
-		navigate("/");
+		googleLogout();
+		navigate("/login");
 	} catch (err) {
-		console.error("Error signing out:", err);
+		console.error("Error signing out:", err.message);
 	}
 }

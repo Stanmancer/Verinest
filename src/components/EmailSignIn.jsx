@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
-import { handleEmailSignIn } from "../utils/AuthHandlers";
+import { handleEmailSignIn, handleGoogleSignIn } from "../utils/AuthHandlers.js";
 import ErrorMessage from "./ErrorMessage";
-import GoogleSignIn from "./GoogleSignIn";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function EmailSignIn({ toggleEmailSignIn, toggleEmailSignUp }) {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [errors, setErrors] = useState({});
 	const [isLoading, setIsLoading] = useState(false);
-	// const [emailError, setEmailError] = useState("");
-	// const [signInError, setSignInError] = useState("");
 	const { setUser } = useAuth();
 	const navigate = useNavigate();
 
@@ -43,14 +41,34 @@ export default function EmailSignIn({ toggleEmailSignIn, toggleEmailSignUp }) {
 				</div>
 
 				{/* Google sign-in with shared error system */}
-				<div className="w-full mb-4 text-center hover:bg-gray-50 transition-colors">
-					<GoogleSignIn
+				<div className="w-full mb-4 text-center hover:bg-gray-50 transition-colors flex-col items-center space-y-1">
+					<GoogleLogin
+						onSuccess={(credentialResponse) => {
+							const idToken = credentialResponse.credential;
+
+							handleGoogleSignIn(
+								setErrors,
+								setIsLoading,
+								setUser,
+								navigate,
+								idToken
+							);
+						}}
+						onError={() => {
+							setErrors({ googleAuth: "Google sign-in failed" });
+						}}
+						logo_alignment="center"
+						shape="pill"
+					/>
+					{/* <GoogleSignIn
 						setErrors={setErrors}
 						setIsLoading={setIsLoading}
 						setUser={setUser}
 						navigate={navigate}
-					/>
-					{errors.google && <ErrorMessage message={errors.google} />}
+					/> */}
+					{errors.googleAuth && (
+						<ErrorMessage message={errors.googleAuth} />
+					)}
 				</div>
 
 				{/* Divider */}
@@ -69,8 +87,8 @@ export default function EmailSignIn({ toggleEmailSignIn, toggleEmailSignUp }) {
 							password,
 							setErrors,
 							setIsLoading,
-							setUser,
 							navigate,
+							setUser,
 						})
 					}
 					className="space-y-4"
