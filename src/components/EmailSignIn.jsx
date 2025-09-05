@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
-import {
-	handleEmailSignIn,
-	handleGoogleSignIn,
-} from "../utils/AuthHandlers.js";
+import { handleEmailSignIn } from "../utils/AuthHandlers.js";
 import ErrorMessage from "./ErrorMessage";
-import { GoogleLogin } from "@react-oauth/google";
+import GoogleSignInButton from "./GoogleSignInButton.jsx";
 
 export default function EmailSignIn({ toggleEmailSignIn, toggleEmailSignUp }) {
 	const [email, setEmail] = useState("");
@@ -45,30 +42,13 @@ export default function EmailSignIn({ toggleEmailSignIn, toggleEmailSignUp }) {
 
 				{/* Google sign-in with shared error system */}
 				<div className="w-full mb-4 text-center hover:bg-gray-50 transition-colors flex-col items-center space-y-1">
-					<GoogleLogin
-						onSuccess={(credentialResponse) => {
-							const idToken = credentialResponse.credential;
-
-							handleGoogleSignIn({
-								setErrors,
-								setIsLoading,
-								setUser,
-								navigate,
-								idToken,
-							});
-						}}
-						onError={() => {
-							setErrors({ googleAuth: "Google sign-in failed" });
-						}}
-						logo_alignment="center"
-						shape="pill"
+					<GoogleSignInButton
+					// setErrors={setErrors}
+					// setIsLoading={setIsLoading}
+					// setUser={setUser}
+					// navigate={navigate}
 					/>
-					{/* <GoogleSignIn
-						setErrors={setErrors}
-						setIsLoading={setIsLoading}
-						setUser={setUser}
-						navigate={navigate}
-					/> */}
+
 					{errors.googleAuth && (
 						<ErrorMessage message={errors.googleAuth} />
 					)}

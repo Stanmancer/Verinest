@@ -35,14 +35,13 @@ export async function handleEmailSignIn({
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ email, password }),
-				credentials: "include", // ensure cookie is included
+				credentials: "include",
 			}
 		);
 
 		const data = await response.json();
 
-		if (response.ok) {
-			localStorage.setItem("token", data.token);
+		if (response.ok && data.status==="success") {
 			navigate("/dashboard");
 		} else {
 			setErrors({ form: data.message || "Sign in failed" });
