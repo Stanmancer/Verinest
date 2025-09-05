@@ -23,16 +23,15 @@ import RealEstateQuiz from "./RealEstateQuiz.jsx";
 import ComingSoon from "./ComingSoon.jsx";
 
 export default function Dashboard() {
-  const { setUser } = useAuth(); // Removed unused 'user' variable
+  const { user, setUser, fetchUser } = useAuth(); 
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [missionTab, setMissionTab] = useState("General");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [balanceVisible, setBalanceVisible] = useState(false);
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
-  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isTwitterPopupOpen, setIsTwitterPopupOpen] = useState(false);
@@ -55,29 +54,29 @@ export default function Dashboard() {
 
   // Calculate reward for a specific day
   const calculateReward = (day) => {
-    return day === 5 ? 10 : 5;
+    return day === 7 ? 10 : 5;
   };
 
   // Add trust points to user
   const addTrustPoints = useCallback(
     async (points) => {
       try {
-        if (!userData || !userData.id) {
+        if (!user || !user.id) {
           console.log("User data not available yet");
           return false;
         }
 
-        const token = localStorage.getItem("token");
+        // const token = localStorage.getItem("token");
         const response = await fetch(
           "https://verinest.up.railway.app/api/users/trust_point",
           {
             method: "PUT",
             headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
             },
+            credentials: "include",
             body: JSON.stringify({
-              user_id: userData.id,
+              user_id: user.id,
               score_to_add: points,
             }),
           }
@@ -85,19 +84,14 @@ export default function Dashboard() {
 
         if (response.ok) {
           const result = await response.json();
-          // Update both user context and local user data
           setUser((prev) => ({
             ...prev,
             trust_score: result.data.user.trust_score,
           }));
-          setUserData((prev) => ({
-            ...prev,
-            trust_score: result.data.user.trust_score,
-          }));
+          
           return true;
         } else {
-          const errorText = await response.text();
-          console.error("Failed to update trust score:", errorText);
+          console.error("Failed to update trust score:", await response.text());
           return false;
         }
       } catch (error) {
@@ -105,7 +99,7 @@ export default function Dashboard() {
         return false;
       }
     },
-    [setUser, userData]
+    [setUser, user]
   );
 
   // Check login status and update streak
@@ -183,7 +177,7 @@ export default function Dashboard() {
         setClaimedDays((prev) => [...prev, day]);
 
         // Show success message
-        alert(`Successfully claimed ${points} VTS!`);
+        // alert(`Successfully claimed ${points} VTS!`);
       } else {
         alert("Failed to claim reward. Please try again.");
       }
@@ -194,117 +188,69 @@ export default function Dashboard() {
   };
 
   // Fetch user data from API
-  const fetchUserData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
+const initializeUserData = useCallback(async () => {
+	try {
+		setLoading(true);
+		const data = await fetchUser();
+		if (!data) {
+			navigate("/login");
+			return;
+		}
+		const storedStreak = parseInt(
+			localStorage.getItem("currentStreak") || "0"
+		);
+		const storedMaxStreak = parseInt(
+			localStorage.getItem("maxStreak") || "0"
+		);
+		const lastLogin = localStorage.getItem("lastLogin");
+		const lastClaimedDate = localStorage.getItem("lastClaimedDate");
+		const today = new Date().toDateString();
 
-      const response = await fetch(
-        "https://verinest.up.railway.app/api/users/me",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+		setCurrentStreak(storedStreak);
+		setMaxStreak(storedMaxStreak);
+		setLastLoginTime(lastLogin ? new Date(JSON.parse(lastLogin)) : null);
+		setTodayClaimed(lastClaimedDate === today);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch user data");
-      }
+		updateLoginStatus();
+	} catch (err) {
+		setError(err.message);
+		console.error("Error initializing user:", err);
+		navigate("/login");
+	} finally {
+		setLoading(false);
+	}
+}, [fetchUser, navigate, updateLoginStatus]);
 
-      const data = await response.json();
+// Initialize user data on component mount 
+useEffect(() => {
+	initializeUserData();
+}, [initializeUserData]);
 
-      if (data.status === "success") {
-        setUserData(data.data.user);
-        setUser(data.data.user);
-
-        // Initialize streak from localStorage
-        const storedStreak = parseInt(
-          localStorage.getItem("currentStreak") || "0"
-        );
-        const storedMaxStreak = parseInt(
-          localStorage.getItem("maxStreak") || "0"
-        );
-        const lastLogin = localStorage.getItem("lastLogin");
-        const lastClaimedDate = localStorage.getItem("lastClaimedDate");
-        const today = new Date().toDateString();
-
-        setCurrentStreak(storedStreak);
-        setMaxStreak(storedMaxStreak);
-        setLastLoginTime(lastLogin ? new Date(JSON.parse(lastLogin)) : null);
-        setTodayClaimed(lastClaimedDate === today);
-
-        // Update login status
-        updateLoginStatus();
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error("Error fetching user data:", err);
-      if (
-        err.message.includes("Failed to fetch") ||
-        err.message.includes("token")
-      ) {
-        navigate("/login");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate, setUser, updateLoginStatus]);
-
-  // Initialize user data on component mount
-  useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
-
-  const toggleBalanceVisibility = () => {
-    setBalanceVisible(!balanceVisible);
-  };
-
-  const handleLogout = () => {
-    handleSignOut({ setUser, navigate });
-  };
-
-  const handleTwitterMission = () => {
-    setIsTwitterPopupOpen(true);
-  };
+  const toggleBalanceVisibility = () => {setBalanceVisible(!balanceVisible);};
+const handleLogout = () => {handleSignOut({ setUser, navigate })};
+const handleTwitterMission = () => {setIsTwitterPopupOpen(true)};
 
   const handleTwitterComplete = async () => {
-    try {
       const success = await addTrustPoints(5);
       if (success) {
         setCompletedMissions((prev) => [...prev, "twitter"]);
         setIsTwitterPopupOpen(false);
         alert("Successfully claimed 5 VTS for Twitter mission!");
       } else {
-        console.error("Failed to add Twitter mission points");
         alert("Failed to claim Twitter mission reward. Please try again.");
       }
-    } catch (error) {
-      console.error("Error updating trust score:", error);
-      alert("An error occurred while claiming your reward.");
-    }
   };
 
   const handleQuizComplete = async (score) => {
     // Only add points if all answers are correct
     if (score === 5) {
-      try {
         const success = await addTrustPoints(5);
         if (success) {
           setCompletedMissions((prev) => [...prev, "quiz"]);
           alert("Successfully claimed 5 VTS for completing the quiz!");
         } else {
-          console.error("Failed to add quiz points");
           alert("Failed to claim quiz reward. Please try again.");
         }
-      } catch (error) {
-        console.error("Error updating trust score:", error);
-        alert("An error occurred while claiming your reward.");
-      }
     } else {
       alert("You need to answer all questions correctly to earn VTS.");
     }
@@ -331,7 +277,7 @@ export default function Dashboard() {
           </h1>
           <p className="text-slate-600 mb-6">{error}</p>
           <button
-            onClick={fetchUserData}
+            onClick={initializeUserData}
             className="px-4 py-2 bg-[#113c5e] text-white rounded-lg hover:bg-[#0c2a44] transition"
           >
             Try Again
@@ -375,13 +321,13 @@ export default function Dashboard() {
           <div className="px-4 py-2 flex items-center gap-3 bg-slate-800 mx-4 rounded-lg">
             <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
               <span className="text-white font-semibold">
-                {userData?.name ? userData.name.charAt(0).toUpperCase() : "U"}
+                {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
               </span>
             </div>
             <div>
-              <p className="text-sm font-medium">{userData?.name || "User"}</p>
+              <p className="text-sm font-medium">{user?.name || "User"}</p>
               <p className="text-xs text-slate-400">
-                Trust Score: {userData?.trust_score || 0}
+                Trust Score: {user?.trust_score || 0}
               </p>
             </div>
           </div>
@@ -416,12 +362,13 @@ export default function Dashboard() {
             </ul>
           </nav>
 
-          <div className="p-4 border-t border-slate-800">
+          {/* App Version */}
+          {/* <div className="p-4 border-t border-slate-800">
             <div className="flex items-center justify-between text-slate-400 text-sm">
               <span>App Version</span>
               <span>v1.2.0</span>
             </div>
-          </div>
+          </div> */}
         </aside>
 
         {/* Main Content */}
@@ -458,7 +405,7 @@ export default function Dashboard() {
                   <img src={userIcon} alt="User" className="w-5 h-5" />
                 </div>
                 <span className="hidden md:block text-sm font-medium">
-                  {userData?.name || "User"}
+                  {user?.name || "User"}
                 </span>
               </div>
             </div>
@@ -470,7 +417,7 @@ export default function Dashboard() {
               {/* Welcome Header with Streak Info */}
               <div className="bg-[#113c5e] text-white p-6 rounded-2xl">
                 <h1 className="text-2xl font-bold mb-2">
-                  Welcome back, {userData?.name || "User"}!
+                  Welcome back, {user?.name || "User"}!
                 </h1>
                 <p className="opacity-90 mb-4">
                   Claim your daily rewards and complete missions to earn VTS
@@ -533,7 +480,7 @@ export default function Dashboard() {
                     {balanceVisible ? (
                       <>
                         <span className="text-3xl font-bold text-slate-800">
-                          {userData?.trust_score || 0}.00
+                          {user?.trust_score || 0}.00
                         </span>
                         <span className="text-lg text-slate-600 ml-2">VTS</span>
                       </>

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import GoogleSignIn from "./GoogleSignIn";
+// import { useNavigate } from "react-router-dom";
+// import { useAuth } from "../context/AuthContext";
 import ErrorMessage from "./ErrorMessage";
 import TextInput from "./TextInput";
 import { validateEmail } from "../utils/validators";
 import { handleEmailSignUp } from "../utils/AuthHandlers";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 export default function EmailSignUp({
 	toggleEmailSignIn,
@@ -26,8 +26,8 @@ export default function EmailSignUp({
 
 	const [errors, setErrors] = useState({});
 
-	const navigate = useNavigate();
-	const { setUser } = useAuth();
+	// const navigate = useNavigate();
+	// const { setUser } = useAuth();
 
 	const handleSignUpEmailChange = (e) => {
 		const value = e.target.value;
@@ -94,11 +94,11 @@ export default function EmailSignUp({
 
 				{/* Google sign-in with shared error system */}
 				<div className="w-full mb-4 text-center hover:bg-gray-50 transition-colors">
-					<GoogleSignIn
-						setErrors={setErrors}
-						setIsLoading={setIsLoading}
-						setUser={setUser}
-						navigate={navigate}
+					<GoogleSignInButton
+					// setErrors={setErrors}
+					// setIsLoading={setIsLoading}
+					// setUser={setUser}
+					// navigate={navigate}
 					/>
 					{errors.google && <ErrorMessage message={errors.google} />}
 				</div>

@@ -1,12 +1,48 @@
-import { createContext, useContext, useState } from "react";
+// AuthContext.jsx
+import {
+	createContext,
+	useContext,
+	useState,
+	useEffect,
+	useCallback,
+} from "react";
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
 	const [user, setUser] = useState(null);
+	const [loading, setLoading] = useState(true);
+
+	// Fetch current user from backend using httpOnly cookie
+	const fetchUser = useCallback(async () => {
+		try {
+			const response = await fetch(
+				"https://verinest.up.railway.app/api/users/me",
+				{ credentials: "include" }
+			);
+			if (!response.ok) return null;
+			const data = await response.json();
+			if (data.status === "success") {
+				setUser(data.data.user);
+				return data.data.user;
+			}
+			return null;
+		} catch (error) {
+			console.error("Error fetching user:", error);
+			return null;
+		}
+	}, []);
+
+	useEffect(() => {
+		(async () => {
+			setLoading(true);
+			await fetchUser();
+			setLoading(false);
+		})();
+	}, [fetchUser]);
 
 	return (
-		<AuthContext.Provider value={{ user, setUser }}>
+		<AuthContext.Provider value={{ user, setUser, fetchUser, loading }}>
 			{children}
 		</AuthContext.Provider>
 	);
