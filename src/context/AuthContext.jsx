@@ -15,12 +15,29 @@ export function AuthProvider({ children }) {
 
 	// Fetch current user from backend using httpOnly cookie
 	const fetchUser = useCallback(async () => {
+		const token = localStorage.getItem("token");
+
+		if (!token) {
+			console.log("No token found in localStorage");
+			return null;
+		}
+
 		try {
 			const response = await fetch(
 				"https://verinest.up.railway.app/api/users/me",
-				{ credentials: "include" }
+				{
+					credentials: "include",
+					headers: {
+						Authorization: `Bearer ${token}`,
+						"Content-Type": "application/json",
+					},
+				}
 			);
-			if (!response.ok) return null;
+
+			if (!response.ok) {
+				console.log("Error is right here", response);
+				return null;
+			}
 			const data = await response.json();
 			if (data.status === "success") {
 				setUser(data.data.user);
@@ -31,7 +48,7 @@ export function AuthProvider({ children }) {
 			console.error("Error fetching user:", error);
 			return null;
 		}
-	}, []);
+	}, [setUser]);
 
 	useEffect(() => {
 		(async () => {

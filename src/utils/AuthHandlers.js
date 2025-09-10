@@ -1,4 +1,4 @@
-import { jwtDecode } from "jwt-decode";
+// import { jwtDecode } from "jwt-decode";
 import { validateEmail } from "./validators.js";
 import { googleLogout } from "@react-oauth/google";
 
@@ -41,7 +41,8 @@ export async function handleEmailSignIn({
 
 		const data = await response.json();
 
-		if (response.ok && data.status==="success") {
+		if (response.ok && data.status === "success") {
+			localStorage.setItem("token", data.token); // backend should be returning this
 			navigate("/dashboard");
 		} else {
 			setErrors({ form: data.message || "Sign in failed" });
@@ -155,23 +156,13 @@ export async function handleGoogleSignIn({
 	setErrors({});
 
 	try {
-		const decodedIdToken = jwtDecode(idToken);
-
-		// pick only needed claims
-		const userClaims = {
-			email: decodedIdToken.email,
-			name: decodedIdToken.name,
-			picture: decodedIdToken.picture,
-		};
-
 		const response = await fetch(
-			"https://verinest.up.railway.app/api/auth/google",
+			"https://verinest.up.railway.app/api/oauth/google",
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					token: idToken,
-					claims: userClaims,
 				}),
 			}
 		);
